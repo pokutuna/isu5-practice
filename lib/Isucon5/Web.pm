@@ -209,15 +209,12 @@ get '/' => [qw(set_global authenticated)] => sub {
 
     my $profile = db->select_row('SELECT * FROM profiles WHERE user_id = ?', current_user()->{id});
 
-    my $entries_query = 'SELECT * FROM entries WHERE user_id = ? ORDER BY created_at LIMIT 5';
+    my $entries_query = 'SELECT id,user_id,private,SUBSTRING_INDEX(body,\'\n\',1) AS title,created_at FROM entries WHERE user_id = ? ORDER BY created_at LIMIT 5';
     my $entries = [];
 
     # TODO DB側に is_private, title, content を持たせておけそう
     for my $entry (@{db->select_all($entries_query, current_user()->{id})}) {
         $entry->{is_private} = ($entry->{private} == 1);
-        my ($title, $content) = split(/\n/, $entry->{body}, 2);
-        $entry->{title} = $title;
-        $entry->{content} = $content;
         push @$entries, $entry;
     }
 
@@ -275,17 +272,12 @@ SQL
     }
 
     # TODO 1000件コメント引いて10件残してる & ループ中で同上
-    my $comment_cs = db->select_all('SELECT * FROM comments ORDER BY created_at DESC LIMIT 1000');
-    my $entrie_cs = db->select_all('SELECT * FROM entries WHERE id IN(' . join(',', map { $_->{entry_id} } @$comment_cs) . ')');
-    my $entry_hash = {};
-    for my $e (@$entrie_cs) {
-        $entry_hash->{ $e->{id} } = $e;
-    }
-
     my $comments_of_friends = [];
-    for my $comment (@$comment_cs) {
+    for my $comment (@{db->select_all('SELECT * FROM comments ORDER BY created_at DESC LIMIT 1000')}) {
+        # next if (!is_friend($comment->{user_id}));
         next if ! exists $friend_map->{ $comment->{user_id} };
-        my $entry = $entry_hash->{ $comment->{entry_id} };
+
+        my $entry = db->select_row('SELECT * FROM entries WHERE id = ?', $comment->{entry_id});
         $entry->{is_private} = ($entry->{private} == 1);
         next if ($entry->{is_private} && !permitted($entry->{user_id}));
         my $entry_owner = get_user($entry->{user_id});
