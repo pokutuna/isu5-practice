@@ -108,7 +108,7 @@ sub is_friend {
     my $user_id = session()->{user_id};
     my $query = 'SELECT 1 AS cnt FROM relations WHERE (one = ? AND another = ?) OR (one = ? AND another = ?) LIMIT 1';
     my $cnt = db->select_one($query, $user_id, $another_id, $another_id, $user_id);
-    return $cnt > 0 ? 1 : 0;
+    return $cnt ? 1 : 0;
 }
 
 sub is_friend_account {
