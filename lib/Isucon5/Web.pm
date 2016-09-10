@@ -21,7 +21,7 @@ sub redis {
 
 my $json_driver;
 sub json_driver {
-    $json_driver ||= JSON::XS->new;
+    $json_driver ||= JSON::XS->new->utf8->canonical;
 }
 
 my $db;
@@ -537,7 +537,7 @@ get '/initialize' => sub {
     redis->flushdb;
     my $users = db->select_all('SELECT * FROM users');
     for my $u (@$users) {
-        my $data = json_driver->utf8->canonical->encode($u);
+        my $data = json_driver->encode($u);
         my $id = $u->{id};
         my $name = $u->{account_name};
         redis->set("users:id:$id", $data, sub {});
