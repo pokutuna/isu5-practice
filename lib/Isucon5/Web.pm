@@ -537,7 +537,7 @@ get '/initialize' => sub {
     redis->flushdb;
     my $users = db->select_all('SELECT * FROM users');
     for my $u (@$users) {
-        my $data = json_driver->encode( $u );
+        my $data = json_driver->utf8->canonical->encode($u);
         my $id = $u->{id};
         my $name = $u->{account_name};
         redis->set("users:id:$id", $data, sub {});
