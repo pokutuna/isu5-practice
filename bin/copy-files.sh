@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -ex
+
 cd $(dirname $0)
 cd .. # /home/isucon/webapp/perl
 # root
