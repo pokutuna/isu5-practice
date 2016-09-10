@@ -274,7 +274,7 @@ LIMIT 10
 SQL
     my $footprints = [];
     for my $fp (@{db->select_all($query, current_user()->{id})}) {
-        my $owner = get_user($fp->{owner_id});
+        my $owner = get_user($fp->{owner_id}); # 遅そう
         $fp->{account_name} = $owner->{account_name};
         $fp->{nick_name} = $owner->{nick_name};
         push @$footprints, $fp;
