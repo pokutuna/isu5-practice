@@ -193,16 +193,7 @@ get '/' => [qw(set_global authenticated)] => sub {
     my $profile = db->select_row('SELECT * FROM profiles WHERE user_id = ?', current_user()->{id});
 
     my $entries_query = 'SELECT * FROM entries WHERE user_id = ? ORDER BY created_at LIMIT 5';
-    my $entries = [];
-
-    # TODO DB側に is_private, title, content を持たせておけそう
-    for my $entry (@{db->select_all($entries_query, current_user()->{id})}) {
-        $entry->{is_private} = ($entry->{private} == 1);
-        my ($title, $content) = split(/\n/, $entry->{body}, 2);
-        $entry->{title} = $title;
-        $entry->{content} = $content;
-        push @$entries, $entry;
-    }
+    my $entries = db->select_all($entries_query, current_user()->{id});
 
     # TODO comment テーブルにコメント先エントリの user_id を追加すれば JOIN 外せそう
     my $comments_for_me_query = <<SQL;
@@ -248,8 +239,6 @@ SQL
         #next if (!is_friend($entry->{user_id}));
         next if ! exists $friend_map->{ $entry->{user_id} };
 
-        my ($title) = split(/\n/, $entry->{body}); # entry カラム分けるの意味ありそう
-        $entry->{title} = $title;
         my $owner = get_user($entry->{user_id});
         $entry->{account_name} = $owner->{account_name};
         $entry->{nick_name} = $owner->{nick_name};
@@ -323,14 +312,10 @@ get '/profile/:account_name' => [qw(set_global authenticated)] => sub {
     } else {
         $query = 'SELECT * FROM entries WHERE user_id = ? AND private=0 ORDER BY created_at LIMIT 5';
     }
-    my $entries = [];
-    for my $entry (@{db->select_all($query, $owner->{id})}) {
-        $entry->{is_private} = ($entry->{private} == 1);
-        my ($title, $content) = split(/\n/, $entry->{body}, 2);
-        $entry->{title} = $title;
-        $entry->{content} = $content;
-        push @$entries, $entry;
-    }
+
+    # ユーザのエントリ一覧
+    my $entries = db->select_all($query, $owner->{id});
+
     mark_footprint($owner->{id});
     my $locals = {
         owner => $owner,
@@ -385,11 +370,9 @@ get '/diary/entries/:account_name' => [qw(set_global authenticated)] => sub {
     }
     my $entries = [];
     for my $entry (@{db->select_all($query, $owner->{id})}) {
-        $entry->{is_private} = ($entry->{private} == 1);
-        my ($title, $content) = split(/\n/, $entry->{body}, 2);
-        $entry->{title} = $title;
-        $entry->{content} = $content;
-        $entry->{comment_count} = db->select_one('SELECT COUNT(*) AS c FROM comments WHERE entry_id = ?', $entry->{id});
+        $entry->{comment_count} = db->select_one(
+            'SELECT COUNT(*) AS c FROM comments WHERE entry_id = ?', $entry->{id}
+        );
         push @$entries, $entry;
     }
     mark_footprint($owner->{id});
@@ -406,10 +389,7 @@ get '/diary/entry/:entry_id' => [qw(set_global authenticated)] => sub {
     my $entry_id = $c->args->{entry_id};
     my $entry = db->select_row('SELECT * FROM entries WHERE id = ?', $entry_id);
     abort_content_not_found() if (!$entry);
-    my ($title, $content) = split(/\n/, $entry->{body}, 2);
-    $entry->{title} = $title;
-    $entry->{content} = $content;
-    $entry->{is_private} = ($entry->{private} == 1);
+
     my $owner = get_user($entry->{user_id});
     if ($entry->{is_private} && !permitted($owner->{id})) {
         abort_permission_denied();
@@ -432,21 +412,27 @@ get '/diary/entry/:entry_id' => [qw(set_global authenticated)] => sub {
 
 post '/diary/entry' => [qw(set_global authenticated)] => sub {
     my ($self, $c) = @_;
-    my $query = 'INSERT INTO entries (user_id, private, body) VALUES (?,?,?)';
-    my $title = $c->req->param('title');
+    # title が '0' だったら正しく保存できないけど元々そうである
+    my $title = $c->req->param('title') || "タイトルなし";
     my $content = $c->req->param('content');
     my $private = $c->req->param('private');
-    my $body = ($title || "タイトルなし") . "\n" . $content;
-    db->query($query, current_user()->{id}, ($private ? '1' : '0'), $body);
+    db->query(
+        'INSERT INTO entries (user_id, is_private, title, content) VALUES (?,?,?,?)',
+        current_user()->{id},
+        ($private ? '1' : '0'),
+        $title,
+        $content,
+    );
     redirect('/diary/entries/'.current_user()->{account_name});
 };
 
 post '/diary/comment/:entry_id' => [qw(set_global authenticated)] => sub {
     my ($self, $c) = @_;
+
     my $entry_id = $c->args->{entry_id};
     my $entry = db->select_row('SELECT * FROM entries WHERE id = ?', $entry_id);
     abort_content_not_found() if (!$entry);
-    $entry->{is_private} = ($entry->{private} == 1);
+
     if ($entry->{is_private} && !permitted($entry->{user_id})) {
         abort_permission_denied();
     }
