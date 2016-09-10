@@ -11,7 +11,12 @@ use Redis::Fast;
 
 my $redis;
 sub redis {
-    $redis ||= Redis::Fast->new;
+    $redis ||= Redis::Fast->new(
+        read_timeout  => 1.0,
+        write_timeout => 1.0,
+        reconnect     => 1,
+        encoding      => 'utf8',
+    );
 }
 
 my $json_driver;
