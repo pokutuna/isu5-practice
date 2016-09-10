@@ -259,11 +259,10 @@ SQL
     }
 
     my $query = <<SQL;
-SELECT user_id, owner_id, DATE(created_at) AS date, MAX(created_at) as updated
+SELECT user_id, owner_id, created_at as updated
 FROM footprints
 WHERE user_id = ?
-GROUP BY user_id, owner_id, DATE(created_at)
-ORDER BY updated DESC
+ORDER BY created_at DESC
 LIMIT 10
 SQL
     my $footprints = [];
