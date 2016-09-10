@@ -259,7 +259,7 @@ SQL
         last if @$comments_of_friends+0 >= 10;
     }
 
-
+    # フレンド数のみ取得
     my $friend_count = db->select_one(
         'SELECT COUNT(*) FROM relations WHERE one = ? OR another = ?',
         current_user()->{id}, current_user()->{id}
