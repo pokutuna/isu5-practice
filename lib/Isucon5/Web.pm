@@ -101,10 +101,12 @@ sub user_from_account {
     return $user;
 }
 
+# MEMO a->b, b->a の関係で双方向で持ってるけどいみなさそう
+# TODO これループから呼ばれてるので要改善
 sub is_friend {
     my ($another_id) = @_;
     my $user_id = session()->{user_id};
-    my $query = 'SELECT COUNT(1) AS cnt FROM relations WHERE (one = ? AND another = ?) OR (one = ? AND another = ?)';
+    my $query = 'SELECT 1 AS cnt FROM relations WHERE (one = ? AND another = ?) OR (one = ? AND another = ?) LIMIT 1';
     my $cnt = db->select_one($query, $user_id, $another_id, $another_id, $user_id);
     return $cnt > 0 ? 1 : 0;
 }

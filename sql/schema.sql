@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
 ) DEFAULT CHARSET=utf8mb4;
 
 -- DROP TABLE IF EXISTS salts;
+-- TODO users とテーブルくっつけてよさそう
 CREATE TABLE IF NOT EXISTS salts (
   `user_id` int NOT NULL PRIMARY KEY,
   `salt` varchar(6)
