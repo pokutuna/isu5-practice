@@ -40,11 +40,8 @@ CREATE TABLE IF NOT EXISTS profiles (
 CREATE TABLE IF NOT EXISTS entries (
   `id` int NOT NULL AUTO_INCREMENT PRIMARY KEY,
   `user_id` int NOT NULL,
-  -- `private` tinyint NOT NULL,
-  -- `body` text,
-  `is_private` tinyint NOT NULL,
-  `title` text,
-  `content` text,
+  `private` tinyint NOT NULL,
+  `body` text,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY `user_id` (`user_id`,`created_at`),
   KEY `created_at` (`created_at`)
