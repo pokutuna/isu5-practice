@@ -275,8 +275,8 @@ SQL
     }
 
     # TODO 1000件コメント引いて10件残してる & ループ中で同上
-    my $comments = db->select_all('SELECT * FROM comments ORDER BY created_at DESC LIMIT 1000')};
-    my $entrie_cs = db->select_all('SELECT * FROM entries WHERE id IN(' . join(',', map { $_->{entry_id} } @$comments) . ')')};
+    my $comments = db->select_all('SELECT * FROM comments ORDER BY created_at DESC LIMIT 1000');
+    my $entrie_cs = db->select_all('SELECT * FROM entries WHERE id IN(' . join(',', map { $_->{entry_id} } @$comments) . ')');
     my $entry_hash = {};
     for my $e (@$entrie_cs) {
         $entry_hash->{ $e->{id} } = $e;
