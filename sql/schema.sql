@@ -58,7 +58,15 @@ CREATE TABLE IF NOT EXISTS comments (
 -- DROP TABLE IF EXISTS footprints;
 CREATE TABLE IF NOT EXISTS footprints (
   `id` int NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  `user_id` int NOT NULL,
-  `owner_id` int NOT NULL,
+  `user_id` int NOT NULL, -- あしあとをつけられた人
+  `owner_id` int NOT NULL, -- 足跡のヌシ
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+) DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS footprints (
+  `id` int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  `user_id` int NOT NULL, -- あしあとをつけられた人
+  `owner_id` int NOT NULL, -- 足跡のヌシ
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+  UNIQUE KEY `user_id_owner_id` (`user_id`, `owner_id`)
 ) DEFAULT CHARSET=utf8;
