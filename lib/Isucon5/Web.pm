@@ -127,6 +127,7 @@ SQL
     }
 }
 
+# 自身かフレンドか
 sub permitted {
     my ($another_id) = @_;
     $another_id == current_user()->{id} || is_friend($another_id);
@@ -168,6 +169,7 @@ filter 'set_global' => sub {
 
 get '/login' => sub {
     my ($self, $c) = @_;
+    # TODO 定型文なのでテンプレートに書けそう
     $c->render('login.tx', { message => '高負荷に耐えられるSNSコミュニティサイトへようこそ!' });
 };
 
@@ -192,6 +194,8 @@ get '/' => [qw(set_global authenticated)] => sub {
 
     my $entries_query = 'SELECT * FROM entries WHERE user_id = ? ORDER BY created_at LIMIT 5';
     my $entries = [];
+
+    # TODO DB側に is_private, title, content を持たせておけそう
     for my $entry (@{db->select_all($entries_query, current_user()->{id})}) {
         $entry->{is_private} = ($entry->{private} == 1);
         my ($title, $content) = split(/\n/, $entry->{body}, 2);
@@ -200,10 +204,16 @@ get '/' => [qw(set_global authenticated)] => sub {
         push @$entries, $entry;
     }
 
+    # TODO comment テーブルにコメント先エントリの user_id を追加すれば JOIN 外せそう
     my $comments_for_me_query = <<SQL;
-SELECT c.id AS id, c.entry_id AS entry_id, c.user_id AS user_id, c.comment AS comment, c.created_at AS created_at
-FROM comments c
-JOIN entries e ON c.entry_id = e.id
+SELECT
+  c.id AS id,
+  c.entry_id AS entry_id,
+  c.user_id AS user_id,
+  c.comment AS comment,
+  c.created_at AS created_at
+FROM comments AS c
+  JOIN entries AS e ON c.entry_id = e.id
 WHERE e.user_id = ?
 ORDER BY c.created_at DESC
 LIMIT 10
@@ -217,10 +227,12 @@ SQL
         push @$comments_for_me, $comment;
     }
 
+    # TODO ループ中でフレンドかどうか見てるのできびしい
+    # 1000 件引いてきてフレンドが10件残す
     my $entries_of_friends = [];
     for my $entry (@{db->select_all('SELECT * FROM entries ORDER BY created_at DESC LIMIT 1000')}) {
         next if (!is_friend($entry->{user_id}));
-        my ($title) = split(/\n/, $entry->{body});
+        my ($title) = split(/\n/, $entry->{body}); # entry カラム分けるの意味ありそう
         $entry->{title} = $title;
         my $owner = get_user($entry->{user_id});
         $entry->{account_name} = $owner->{account_name};
@@ -229,6 +241,7 @@ SQL
         last if @$entries_of_friends+0 >= 10;
     }
 
+    # TODO 1000件コメント引いて10件残してる & ループ中で同上
     my $comments_of_friends = [];
     for my $comment (@{db->select_all('SELECT * FROM comments ORDER BY created_at DESC LIMIT 1000')}) {
         next if (!is_friend($comment->{user_id}));
@@ -246,19 +259,11 @@ SQL
         last if @$comments_of_friends+0 >= 10;
     }
 
-    my $friends_query = 'SELECT * FROM relations WHERE one = ? OR another = ? ORDER BY created_at DESC';
-    my %friends = ();
-    my $friends = [];
-    for my $rel (@{db->select_all($friends_query, current_user()->{id}, current_user()->{id})}) {
-        my $key = ($rel->{one} == current_user()->{id} ? 'another' : 'one');
-        $friends{$rel->{$key}} ||= do {
-            my $friend = get_user($rel->{$key});
-            $rel->{account_name} = $friend->{account_name};
-            $rel->{nick_name} = $friend->{nick_name};
-            push @$friends, $rel;
-            $rel;
-        };
-    }
+
+    my $friend_count = db->select_one(
+        'SELECT COUNT(*) FROM relations WHERE one = ? OR another = ?',
+        current_user()->{id}, current_user()->{id}
+    ) // 0;
 
     my $query = <<SQL;
 SELECT user_id, owner_id, created_at as updated
@@ -282,7 +287,7 @@ SQL
         'comments_for_me' => $comments_for_me,
         'entries_of_friends' => $entries_of_friends,
         'comments_of_friends' => $comments_of_friends,
-        'friends' => $friends,
+        'friend_count' => $friend_count,
         'footprints' => $footprints
     };
     $c->render('index.tx', $locals);
