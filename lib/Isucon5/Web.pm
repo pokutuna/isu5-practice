@@ -6,6 +6,18 @@ use utf8;
 use Kossy;
 use DBIx::Sunny;
 use Encode;
+use JSON::XS;
+use Redis::Fast;
+
+my $redis;
+sub redis {
+    $redis ||= Redis::Fast->new;
+}
+
+my $json_driver;
+sub json_driver {
+    $json_driver ||= JSON::XS->new;
+}
 
 my $db;
 sub db {
@@ -89,16 +101,16 @@ sub current_user {
 
 sub get_user {
     my ($user_id) = @_;
-    my $user = db->select_row('SELECT * FROM users WHERE id = ?', $user_id);
+    my $user = redis->get("users:id:$user_id");
     abort_content_not_found() if (!$user);
-    return $user;
+    return json_driver->decode($user);
 }
 
 sub user_from_account {
     my ($account_name) = @_;
-    my $user = db->select_row('SELECT * FROM users WHERE account_name = ?', $account_name);
+    my $user = redis->get("users:account_name:$account_name");
     abort_content_not_found() if (!$user);
-    return $user;
+    return json_driver->decode($user);
 }
 
 # MEMO a->b, b->a の関係で双方向で持ってるけどいみなさそう
@@ -515,6 +527,18 @@ get '/initialize' => sub {
     db->query("DELETE FROM footprints WHERE id > 500000");
     db->query("DELETE FROM entries WHERE id > 500000");
     db->query("DELETE FROM comments WHERE id > 1500000");
+
+    # userを全部redisに載せる
+    redis->flushdb;
+    my $users = db->select_all('SELECT * FROM users');
+    for my $u (@$users) {
+        my $data = json_driver->encode( $u );
+        my $id = $u->{id};
+        my $name = $u->{account_name};
+        redis->set("users:id:$id", $data, sub {});
+        redis->set("users:account_name:$name", $data, sub {});
+    }
+    redis->wait_all_responses;
 };
 
 1;
