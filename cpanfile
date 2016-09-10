@@ -5,3 +5,5 @@ requires "DBD::mysql";
 requires "Starman";
 requires "Plack::Session";
 requires "Gazelle";
+requires "Redis::Fast";
+requires "JSON::XS";
