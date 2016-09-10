@@ -227,11 +227,27 @@ SQL
         push @$comments_for_me, $comment;
     }
 
+
+    # 事前に友だちだけを引いてくる
+    my $curr_id = current_user()->{id};
+    my $friend_map = {};
+    for my $fri (@{db->select_all('SELECT one,another FROM relations WHERE (one = ? OR another = ?)', $curr_id, $curr_id)}) {
+        # 単に友だちのidをhashで記録してるだけ
+        if ($fri->{one} == $curr_id) {
+            $friend_map->{ $fri->{another} } = 1;
+        } else {
+            $friend_map->{ $fri->{one} } = 1;
+        }
+    }
+
+
     # TODO ループ中でフレンドかどうか見てるのできびしい
     # 1000 件引いてきてフレンドが10件残す
     my $entries_of_friends = [];
     for my $entry (@{db->select_all('SELECT * FROM entries ORDER BY created_at DESC LIMIT 1000')}) {
-        next if (!is_friend($entry->{user_id}));
+        #next if (!is_friend($entry->{user_id}));
+        next if ! exists $friend_map->{ $entry->{user_id} };
+
         my ($title) = split(/\n/, $entry->{body}); # entry カラム分けるの意味ありそう
         $entry->{title} = $title;
         my $owner = get_user($entry->{user_id});
@@ -244,7 +260,9 @@ SQL
     # TODO 1000件コメント引いて10件残してる & ループ中で同上
     my $comments_of_friends = [];
     for my $comment (@{db->select_all('SELECT * FROM comments ORDER BY created_at DESC LIMIT 1000')}) {
-        next if (!is_friend($comment->{user_id}));
+        # next if (!is_friend($comment->{user_id}));
+        next if ! exists $friend_map->{ $comment->{user_id} };
+
         my $entry = db->select_row('SELECT * FROM entries WHERE id = ?', $comment->{entry_id});
         $entry->{is_private} = ($entry->{private} == 1);
         next if ($entry->{is_private} && !permitted($entry->{user_id}));
@@ -274,7 +292,7 @@ LIMIT 10
 SQL
     my $footprints = [];
     for my $fp (@{db->select_all($query, current_user()->{id})}) {
-        my $owner = get_user($fp->{owner_id});
+        my $owner = get_user($fp->{owner_id}); # 遅そう
         $fp->{account_name} = $owner->{account_name};
         $fp->{nick_name} = $owner->{nick_name};
         push @$footprints, $fp;
