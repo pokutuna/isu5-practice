@@ -544,6 +544,8 @@ get '/initialize' => sub {
         redis->set("users:account_name:$name", $data, sub {});
     }
     redis->wait_all_responses;
+
+    1;
 };
 
 1;
