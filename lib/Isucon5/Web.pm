@@ -275,7 +275,7 @@ SQL
     }
 
     # TODO 1000件コメント引いて10件残してる & ループ中で同上
-    my $comment_cs = db->select_all('SELECT * FROM comments ORDER BY created_at DESC LIMIT 1000');
+    my $comments = db->select_all('SELECT * FROM comments ORDER BY created_at DESC LIMIT 1000');
     my $entrie_cs = db->select_all('SELECT * FROM entries WHERE id IN(' . join(',', map { $_->{entry_id} } @$comments) . ')');
     my $entry_hash = {};
     for my $e (@$entrie_cs) {
@@ -283,7 +283,7 @@ SQL
     }
 
     my $comments_of_friends = [];
-    for my $comment (@$comment_cs) {
+    for my $comment (@$comments) {
         next if ! exists $friend_map->{ $comment->{user_id} };
         my $entry = $entry_hash->{ $comment->{entry_id} };
         $entry->{is_private} = ($entry->{private} == 1);
