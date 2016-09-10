@@ -117,7 +117,10 @@ sub is_friend_account {
 sub mark_footprint {
     my ($user_id) = @_;
     if ($user_id != current_user()->{id}) {
-        my $query = 'INSERT INTO footprints (user_id,owner_id) VALUES (?,?)';
+        my $query = <<SQL;
+INSERT INTO footprints (user_id, owner_id) VALUES (?, ?)
+ON DUPLICATE KEY UPDATE created_at = NOW()
+SQL
         db->query($query, $user_id, current_user()->{id});
     }
 }
@@ -479,8 +482,12 @@ post '/friends/:account_name' => [qw(set_global authenticated)] => sub {
     }
 };
 
+
 get '/initialize' => sub {
     my ($self, $c) = @_;
+    # これはなんでやっている?
+    # disk 埋まらないようにするため?
+    # 追記型なので多すぎると遅くなっていくので単に削っているだけ?
     db->query("DELETE FROM relations WHERE id > 500000");
     db->query("DELETE FROM footprints WHERE id > 500000");
     db->query("DELETE FROM entries WHERE id > 500000");
