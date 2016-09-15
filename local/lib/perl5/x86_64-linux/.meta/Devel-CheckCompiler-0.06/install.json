@@ -1,1 +1,0 @@
-{"version":"0.06","pathname":"S/SY/SYOHEX/Devel-CheckCompiler-0.06.tar.gz","provides":{"Devel::AssertC99":{"file":"lib/Devel/AssertC99.pm"},"Devel::CheckCompiler":{"version":"0.06","file":"lib/Devel/CheckCompiler.pm"}},"name":"Devel::CheckCompiler","target":"Devel::CheckCompiler","dist":"Devel-CheckCompiler-0.06"}

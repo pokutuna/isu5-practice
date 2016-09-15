@@ -1,1 +1,0 @@
-{"pathname":"M/MA/MAKAMAKA/JSON-PP-2.27400.tar.gz","version":"2.27400","dist":"JSON-PP-2.27400","provides":{"JSON::PP":{"file":"lib/JSON/PP.pm","version":"2.27400"},"JSON::PP::Boolean":{"file":"lib/JSON/PP.pm","version":"2.27400"},"JSON::PP::IncrParser":{"version":"2.27400","file":"lib/JSON/PP.pm"}},"name":"JSON::PP","target":"JSON::PP"}
