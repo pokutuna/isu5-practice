@@ -209,14 +209,8 @@ get '/' => [qw(set_global authenticated)] => sub {
 
     my $profile = db->select_row('SELECT * FROM profiles WHERE user_id = ?', current_user()->{id});
 
-    my $entries_query = 'SELECT id,user_id,private,SUBSTRING_INDEX(body,\'\n\',1) AS title,created_at FROM entries WHERE user_id = ? ORDER BY created_at LIMIT 5';
-    my $entries = [];
-
-    # TODO DB側に is_private, title, content を持たせておけそう
-    for my $entry (@{db->select_all($entries_query, current_user()->{id})}) {
-        $entry->{is_private} = ($entry->{private} == 1);
-        push @$entries, $entry;
-    }
+    my $entries_query = 'SELECT id,user_id,is_private,SUBSTRING_INDEX(body,\'\n\',1) AS title,created_at FROM entries WHERE user_id = ? ORDER BY created_at LIMIT 5';
+    my $entries = db->select_all($entries_query, current_user()->{id});
 
     # TODO comment テーブルにコメント先エントリの user_id を追加すれば JOIN 外せそう
     my $comments_for_me_query = <<SQL;
@@ -276,7 +270,6 @@ SQL
         next if ! exists $friend_map->{ $comment->{user_id} };
 
         my $entry = db->select_row('SELECT * FROM entries WHERE id = ?', $comment->{entry_id});
-        $entry->{is_private} = ($entry->{private} == 1);
         next if ($entry->{is_private} && !permitted($entry->{user_id}));
         my $entry_owner = get_user($entry->{user_id});
         $entry->{account_name} = $entry_owner->{account_name};
@@ -289,12 +282,26 @@ SQL
         last if @$comments_of_friends+0 >= 10;
     }
 
+    # フレンドのコメントのうち新しいものから10件
+    # コメント先エントリが private なら permitted のみ閲覧できる
+#     my $comments_of_friends = [];
+#     my $comments_query = <<SQL;
+# SELECT * FROM comments
+#   JOIN entries ON comments.entry_id = entries.id
+# WHERE comments.user_id IN (?)
+# AND (entries.private = 0 OR entries.user_id in (?))
+# ORDER BY created_at DESC LIMIT 10
+# SQL
+#     my $comments_of_friends = db->select_all($comments_query, $friend_ids, [$curr_id, @$friend_ids]);
+
+
     # フレンド数のみ取得
     my $friend_count = db->select_one(
         'SELECT COUNT(*) FROM relations WHERE one = ? OR another = ?',
         current_user()->{id}, current_user()->{id}
     ) // 0;
 
+    # あしあと取得
     my $query = <<SQL;
 SELECT user_id, owner_id, created_at as updated
 FROM footprints
@@ -333,11 +340,10 @@ get '/profile/:account_name' => [qw(set_global authenticated)] => sub {
     if (permitted($owner->{id})) {
         $query = 'SELECT * FROM entries WHERE user_id = ? ORDER BY created_at LIMIT 5';
     } else {
-        $query = 'SELECT * FROM entries WHERE user_id = ? AND private=0 ORDER BY created_at LIMIT 5';
+        $query = 'SELECT * FROM entries WHERE user_id = ? AND is_private=0 ORDER BY created_at LIMIT 5';
     }
     my $entries = [];
     for my $entry (@{db->select_all($query, $owner->{id})}) {
-        $entry->{is_private} = ($entry->{private} == 1);
         my ($title, $content) = split(/\n/, $entry->{body}, 2);
         $entry->{title} = $title;
         $entry->{content} = $content;
@@ -393,11 +399,10 @@ get '/diary/entries/:account_name' => [qw(set_global authenticated)] => sub {
     if (permitted($owner->{id})) {
         $query = 'SELECT * FROM entries WHERE user_id = ? ORDER BY created_at DESC LIMIT 20';
     } else {
-        $query = 'SELECT * FROM entries WHERE user_id = ? AND private=0 ORDER BY created_at DESC LIMIT 20';
+        $query = 'SELECT * FROM entries WHERE user_id = ? AND is_private=0 ORDER BY created_at DESC LIMIT 20';
     }
     my $entries = [];
     for my $entry (@{db->select_all($query, $owner->{id})}) {
-        $entry->{is_private} = ($entry->{private} == 1);
         my ($title, $content) = split(/\n/, $entry->{body}, 2);
         $entry->{title} = $title;
         $entry->{content} = $content;
@@ -421,7 +426,6 @@ get '/diary/entry/:entry_id' => [qw(set_global authenticated)] => sub {
     my ($title, $content) = split(/\n/, $entry->{body}, 2);
     $entry->{title} = $title;
     $entry->{content} = $content;
-    $entry->{is_private} = ($entry->{private} == 1);
     my $owner = get_user($entry->{user_id});
     if ($entry->{is_private} && !permitted($owner->{id})) {
         abort_permission_denied();
@@ -444,12 +448,12 @@ get '/diary/entry/:entry_id' => [qw(set_global authenticated)] => sub {
 
 post '/diary/entry' => [qw(set_global authenticated)] => sub {
     my ($self, $c) = @_;
-    my $query = 'INSERT INTO entries (user_id, private, body) VALUES (?,?,?)';
+    my $query = 'INSERT INTO entries (user_id, is_private, body) VALUES (?,?,?)';
     my $title = $c->req->param('title');
     my $content = $c->req->param('content');
-    my $private = $c->req->param('private');
+    my $is_private = $c->req->param('private') ? 1 : 0;
     my $body = ($title || "タイトルなし") . "\n" . $content;
-    db->query($query, current_user()->{id}, ($private ? '1' : '0'), $body);
+    db->query($query, current_user()->{id}, $private, $body);
     redirect('/diary/entries/'.current_user()->{account_name});
 };
 
@@ -458,7 +462,6 @@ post '/diary/comment/:entry_id' => [qw(set_global authenticated)] => sub {
     my $entry_id = $c->args->{entry_id};
     my $entry = db->select_row('SELECT * FROM entries WHERE id = ?', $entry_id);
     abort_content_not_found() if (!$entry);
-    $entry->{is_private} = ($entry->{private} == 1);
     if ($entry->{is_private} && !permitted($entry->{user_id})) {
         abort_permission_denied();
     }
