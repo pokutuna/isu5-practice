@@ -9,6 +9,7 @@ cd .. # /home/isucon/webapp/perl
 ln -sf /home/isucon/webapp/perl/config/nginx.conf /etc/nginx/nginx.conf
 ln -sf /home/isucon/webapp/perl/config/my.cnf /etc/my.cnf
 ln -sf /home/isucon/webapp/perl/config/sysctl.conf /etc/sysctl.conf
+ln -sf /home/isucon/webapp/perl/config/isuxi.perl.service /etc/systemd/system/isuxi.perl.service
 
 cp -r script /home/isucon/webapp/
 cp -r static /home/isucon/webapp/
