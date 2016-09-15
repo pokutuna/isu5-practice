@@ -453,7 +453,7 @@ post '/diary/entry' => [qw(set_global authenticated)] => sub {
     my $content = $c->req->param('content');
     my $is_private = $c->req->param('private') ? 1 : 0;
     my $body = ($title || "タイトルなし") . "\n" . $content;
-    db->query($query, current_user()->{id}, $private, $body);
+    db->query($query, current_user()->{id}, $is_private, $body);
     redirect('/diary/entries/'.current_user()->{account_name});
 };
 
