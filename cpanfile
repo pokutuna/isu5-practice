@@ -11,3 +11,4 @@ requires "Plack";
 requires "Text::Xslate";
 requires "HTML::FillInForm::Lite";
 requires 'Devel::KYTProf';
+requires 'Devel::NYTProf';
