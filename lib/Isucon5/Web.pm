@@ -282,7 +282,7 @@ SQL
         my $entries = db->select_all(
             'SELECT * FROM entries WHERE id IN (?)', [ map { $_->{entry_id} } @$comments ]
         );
-        my $id_to_entry = +{ map { $_->id => $_ } @$entries };
+        my $id_to_entry = +{ map { $_->{id} => $_ } @$entries };
         for my $e (@$entries) {
             my $owner = get_user($e->{user_id});
             $e->{account_name} = $owner->{account_name};
