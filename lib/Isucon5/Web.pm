@@ -300,8 +300,6 @@ SQL
         $comments;
     };
 
-
-
     # フレンド数のみ取得
     my $friend_count = db->select_one(
         'SELECT COUNT(*) FROM relations WHERE one = ? OR another = ?',
