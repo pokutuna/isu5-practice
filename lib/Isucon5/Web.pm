@@ -253,23 +253,21 @@ SQL
             $friend_map->{ $fri->{one} } = 1;
         }
     }
+    my $friend_ids = [ keys %$friend_map ];
 
 
-    # TODO ループ中でフレンドかどうか見てるのできびしい
-    # 1000 件引いてきてフレンドが10件残す
-    my $entries_of_friends = [];
-    for my $entry (@{db->select_all('SELECT * FROM entries ORDER BY created_at DESC LIMIT 1000')}) {
-        #next if (!is_friend($entry->{user_id}));
-        next if ! exists $friend_map->{ $entry->{user_id} };
-
+    # フレンドの投稿新しいほうから10件
+    my $entries_of_friends = db->select_all(
+        'SELECT * FROM entries WHERE user_id IN (?) ORDER BY created_at DESC LIMIT 10', $friend_ids
+    );
+    for my $entry (@$entries_of_friends) {
         my ($title) = split(/\n/, $entry->{body}); # entry カラム分けるの意味ありそう
         $entry->{title} = $title;
-        my $owner = get_user($entry->{user_id});
+        my $owner = get_user($entry->{user_id}); # TODO ユーザまとめて引く
         $entry->{account_name} = $owner->{account_name};
         $entry->{nick_name} = $owner->{nick_name};
-        push @$entries_of_friends, $entry;
-        last if @$entries_of_friends+0 >= 10;
     }
+
 
     # TODO 1000件コメント引いて10件残してる & ループ中で同上
     my $comments_of_friends = [];
