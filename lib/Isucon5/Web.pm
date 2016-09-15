@@ -4,6 +4,7 @@ use strict;
 use warnings;
 use utf8;
 use Kossy;
+use DBIx::Handler;
 use DBIx::Sunny;
 use Encode;
 use JSON::XS;
@@ -34,16 +35,19 @@ sub db {
             password => $ENV{ISUCON5_DB_PASSWORD},
             database => $ENV{ISUCON5_DB_NAME} || 'isucon5q',
         );
-        DBIx::Sunny->connect(
+
+        DBIx::Handler->new(
             "dbi:mysql:database=$db{database};host=$db{host};port=$db{port}", $db{username}, $db{password}, {
                 RaiseError => 1,
                 PrintError => 0,
                 AutoInactiveDestroy => 1,
                 mysql_enable_utf8   => 1,
                 mysql_auto_reconnect => 1,
+                RootClass => 'DBIx::Sunny',
             },
         );
     };
+    $db->dbh;
 }
 
 my ($SELF, $C);
