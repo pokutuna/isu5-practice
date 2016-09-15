@@ -262,7 +262,6 @@ SQL
         $entry->{nick_name} = $owner->{nick_name};
     }
 
-
     # フレンドのコメントのうち新しいものから10件
     # コメント先エントリが private なら permitted のみ閲覧できる
     my $comments_query = <<SQL;
@@ -270,7 +269,7 @@ SELECT * FROM comments
   JOIN entries ON comments.entry_id = entries.id
 WHERE comments.user_id IN (?)
 AND (entries.is_private = 0 OR entries.user_id in (?))
-ORDER BY created_at DESC LIMIT 10
+ORDER BY comments.created_at DESC LIMIT 10
 SQL
     my $comments_of_friends = do {
         my $comments = db->select_all($comments_query, $friend_ids, [$curr_id, @$friend_ids]);
