@@ -266,39 +266,58 @@ SQL
         $entry->{nick_name} = $owner->{nick_name};
     }
 
-    # フレンドのコメントのうち新しいものから10件
-    # コメント先エントリが private なら permitted のみ閲覧できる
-    my $comments_query = <<SQL;
-SELECT * FROM comments
-  JOIN entries ON comments.entry_id = entries.id
-WHERE comments.user_id IN (?)
-AND (entries.is_private = 0 OR entries.user_id in (?))
-ORDER BY comments.created_at DESC LIMIT 10
-SQL
-    my $comments_of_friends = do {
-        my $comments = db->select_all($comments_query, $friend_ids, [$curr_id, @$friend_ids]);
+    # TODO 1000件コメント引いて10件残してる & ループ中で同上
+    my $comments_of_friends = [];
+    for my $comment (@{db->select_all('SELECT * FROM comments ORDER BY created_at DESC LIMIT 1000')}) {
+        # next if (!is_friend($comment->{user_id}));
+        next if ! exists $friend_map->{ $comment->{user_id} };
 
-        # コメント先エントリを読み込む
-        my $entries = db->select_all(
-            'SELECT * FROM entries WHERE id IN (?)', [ map { $_->{entry_id} } @$entries ]
-        );
-        my $id_to_entry = +{ map { $_->id => $_ } @$entries };
-        for my $e (@$entries) {
-            my $owner = get_user($e->{user_id});
-            $e->{account_name} = $owner->{account_name};
-            $e->{nick_name} = $owner->{nick_name};
-        }
+        my $entry = db->select_row('SELECT * FROM entries WHERE id = ?', $comment->{entry_id});
+        next if ($entry->{is_private} && !permitted($entry->{user_id}));
+        my $entry_owner = get_user($entry->{user_id});
+        $entry->{account_name} = $entry_owner->{account_name};
+        $entry->{nick_name} = $entry_owner->{nick_name};
+        $comment->{entry} = $entry;
+        my $comment_owner = get_user($comment->{user_id});
+        $comment->{account_name} = $comment_owner->{account_name};
+        $comment->{nick_name} = $comment_owner->{nick_name};
+        push @$comments_of_friends, $comment;
+        last if @$comments_of_friends+0 >= 10;
+    }
 
-        # 各コメントの著者名とエントリをセット
-        for $c (@$comments) {
-            my $owner = get_user($c->{user_id});
-            $c->{account_name} = $owner->{account_name};
-            $c->{nick_name} = $owner->{nick_name};
-            $c->{entry} = $id_to_entry->{$c->{entry_id}};
-        }
+#     # フレンドのコメントのうち新しいものから10件
+#     # コメント先エントリが private なら permitted のみ閲覧できる
+#     my $comments_query = <<SQL;
+# SELECT * FROM comments
+#   JOIN entries ON comments.entry_id = entries.id
+# WHERE comments.user_id IN (?)
+# AND (entries.is_private = 0 OR entries.user_id in (?))
+# ORDER BY comments.created_at DESC LIMIT 10
+# SQL
+#     my $comments_of_friends = do {
+#         my $comments = db->select_all($comments_query, $friend_ids, [$curr_id, @$friend_ids]);
 
-        $comments;
-    };
+#         # コメント先エントリを読み込む
+#         my $entries = db->select_all(
+#             'SELECT * FROM entries WHERE id IN (?)', [ map { $_->{entry_id} } @$entries ]
+#         );
+#         my $id_to_entry = +{ map { $_->id => $_ } @$entries };
+#         for my $e (@$entries) {
+#             my $owner = get_user($e->{user_id});
+#             $e->{account_name} = $owner->{account_name};
+#             $e->{nick_name} = $owner->{nick_name};
+#         }
+
+#         # 各コメントの著者名とエントリをセット
+#         for $c (@$comments) {
+#             my $owner = get_user($c->{user_id});
+#             $c->{account_name} = $owner->{account_name};
+#             $c->{nick_name} = $owner->{nick_name};
+#             $c->{entry} = $id_to_entry->{$c->{entry_id}};
+#         }
+
+#         $comments;
+#     };
 
 
 
