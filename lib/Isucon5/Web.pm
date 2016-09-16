@@ -250,6 +250,7 @@ SQL
 
     # フレンドのコメントのうち新しいものから10件
     # コメント先エントリが private なら permitted のみ閲覧できる
+    # XXX もうちょい JOIN しようとしたけど index 効かなくてスコア落ちてきた
     my $comments_query = <<SQL;
 SELECT comments.* FROM comments
   JOIN entries ON comments.entry_id = entries.id
