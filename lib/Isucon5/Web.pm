@@ -541,7 +541,7 @@ sub add_friend_redis {
     my ($one_id, $another_id) = @_;
     my @sorted = sort { $a <=> $b } ($one_id, $another_id);
     my $key = sprintf 'is_friend:%s:%s', @sorted;
-    redis->set($key, 1, sub {});
+    redis->set($key, 1);
 }
 
 sub is_friend_redis {
