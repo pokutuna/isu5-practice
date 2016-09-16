@@ -239,13 +239,14 @@ SQL
     };
 
     # フレンドの投稿新しいほうから10件
-    my $entries_of_friends = db->select_all(
-        'SELECT entries.*, users.nick_name, users.account_name FROM entries JOIN users ON entries.user_id = users.id WHERE entries.user_id IN (?) ORDER BY entries.created_at DESC LIMIT 10', $friend_ids
-    );
-    for my $entry (@$entries_of_friends) {
-        my ($title) = split(/\n/, $entry->{body}); # entry カラム分けるの意味ありそう
-        $entry->{title} = $title;
-    }
+    my $entries_of_friends_query = <<SQL;
+SELECT
+  entries.id, SUBSTRING_INDEX(entries.body, \'\n\', 1) as title, entries.created_at,
+  users.nick_name, users.account_name
+FROM entries JOIN users ON entries.user_id = users.id
+WHERE entries.user_id IN (?) ORDER BY entries.created_at DESC LIMIT 10
+SQL
+    my $entries_of_friends = db->select_all($entries_of_friends_query, $friend_ids);
 
     # フレンドのコメントのうち新しいものから10件
     # コメント先エントリが private なら permitted のみ閲覧できる
