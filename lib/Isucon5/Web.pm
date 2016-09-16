@@ -418,7 +418,7 @@ get '/diary/entry/:entry_id' => [qw(set_global authenticated)] => sub {
     $entry->{content} = $content;
 
     my $comments = db->select_all(
-        'SELECT comments.*, users.account_name, users.nick_name FROM comments JOIN users ON comments.uesr_id ON users.id WHERE comments.entry_id = ?', $entry->{id}
+        'SELECT comments.*, users.account_name, users.nick_name FROM comments JOIN users ON comments.uesr_id = users.id WHERE comments.entry_id = ?', $entry->{id}
     );
 
     mark_footprint($owner->{id});
@@ -484,7 +484,6 @@ get '/friends' => [qw(set_global authenticated)] => sub {
         $rel->{nick_name} = $friend->{nick_name};
         push @$friends, $rel;
     }
-    #my $friends = [ sort { $a->{created_at} lt $b->{created_at} } values(%friends) ];
     $c->render('friends.tx', { friends => $friends });
 };
 
