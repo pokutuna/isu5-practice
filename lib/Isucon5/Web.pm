@@ -81,8 +81,7 @@ sub authenticate {
     my $query = <<SQL;
 SELECT u.id AS id, u.account_name AS account_name, u.nick_name AS nick_name, u.email AS email
 FROM users u
-JOIN salts s ON u.id = s.user_id
-WHERE u.email = ? AND u.passhash = SHA2(CONCAT(?, s.salt), 512)
+WHERE u.email = ? AND u.passhash = SHA2(CONCAT(?, u.salt), 512)
 SQL
     my $result = db->select_row($query, $email, $password);
     if (!$result) {

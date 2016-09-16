@@ -4,15 +4,16 @@ CREATE TABLE IF NOT EXISTS users (
   `account_name` varchar(64) NOT NULL UNIQUE,
   `nick_name` varchar(32) NOT NULL,
   `email` varchar(255) CHARACTER SET utf8 NOT NULL UNIQUE,
-  `passhash` varchar(128) NOT NULL -- SHA2 512 non-binary (hex)
+  `passhash` varchar(128) NOT NULL, -- SHA2 512 non-binary (hex)
+  `salt` varchar(6)
 ) DEFAULT CHARSET=utf8mb4;
 
--- DROP TABLE IF EXISTS salts;
--- TODO users とテーブルくっつけてよさそう
-CREATE TABLE IF NOT EXISTS salts (
-  `user_id` int NOT NULL PRIMARY KEY,
-  `salt` varchar(6)
-) DEFAULT CHARSET=utf8;
+-- -- DROP TABLE IF EXISTS salts;
+-- -- TODO users とテーブルくっつけてよさそう → した
+-- CREATE TABLE IF NOT EXISTS salts (
+--   `user_id` int NOT NULL PRIMARY KEY,
+--   `salt` varchar(6)
+-- ) DEFAULT CHARSET=utf8;
 
 -- DROP TABLE IF EXISTS relations;
 CREATE TABLE IF NOT EXISTS relations (
