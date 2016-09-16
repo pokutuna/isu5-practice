@@ -503,18 +503,13 @@ SQL
 
 get '/friends' => [qw(set_global authenticated)] => sub {
     my ($self, $c) = @_;
-    my $query = 'SELECT * FROM relations WHERE one = ? OR another = ? ORDER BY created_at DESC';
-    my %friends = ();
+    my $query = 'SELECT another FROM relations WHERE one = ? ORDER BY created_at DESC';
     my $friends = [];
-    for my $rel (@{db->select_all($query, current_user()->{id}, current_user()->{id})}) {
-        my $key = ($rel->{one} == current_user()->{id} ? 'another' : 'one');
-        $friends{$rel->{$key}} ||= do {
-            my $friend = get_user($rel->{$key});
-            $rel->{account_name} = $friend->{account_name};
-            $rel->{nick_name} = $friend->{nick_name};
-            push @$friends, $rel;
-            $rel;
-        };
+    for my $rel (@{db->select_all($query, current_user()->{id})}) {
+        my $friend = get_user($rel->{another});
+        $rel->{account_name} = $friend->{account_name};
+        $rel->{nick_name} = $friend->{nick_name};
+        push @$friends, $rel;
     }
     #my $friends = [ sort { $a->{created_at} lt $b->{created_at} } values(%friends) ];
     $c->render('friends.tx', { friends => $friends });
