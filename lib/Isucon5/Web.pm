@@ -100,7 +100,9 @@ sub current_user {
 
     return undef if (!session()->{user_id});
 
-    $user = db->select_row('SELECT id, account_name, nick_name, email FROM users WHERE id=?', session()->{user_id});
+    $user = db->select_row(
+        'SELECT id, account_name, nick_name, email FROM users WHERE id=?', session()->{user_id}
+    );
     if (!$user) {
         session()->{user_id} = undef;
         abort_authentication_error();
@@ -127,9 +129,10 @@ sub user_from_account {
 sub is_friend {
     my ($another_id) = @_;
     my $user_id = session()->{user_id};
-    my $query = 'SELECT 1 AS cnt FROM relations WHERE (one = ? AND another = ?) OR (one = ? AND another = ?) LIMIT 1';
-    my $cnt = db->select_one($query, $user_id, $another_id, $another_id, $user_id);
-    return $cnt ? 1 : 0;
+    # my $query = 'SELECT 1 AS cnt FROM relations WHERE (one = ? AND another = ?) OR (one = ? AND another = ?) LIMIT 1';
+    # my $cnt = db->select_one($query, $user_id, $another_id, $another_id, $user_id);
+    # return $cnt ? 1 : 0;
+    return is_friend_redis($user_id, $another_id);
 }
 
 sub is_friend_account {
@@ -339,13 +342,16 @@ get '/profile/:account_name' => [qw(set_global authenticated)] => sub {
     my ($self, $c) = @_;
     my $account_name = $c->args->{account_name};
     my $owner = user_from_account($account_name);
-    my $prof = db->select_row('SELECT * FROM profiles WHERE user_id = ?', $owner->{id});
+    my $prof = db->select_row(
+        'SELECT * FROM profiles WHERE user_id = ?', $owner->{id}
+    );
     $prof = {} if (!$prof);
+    my $is_permitted = permitted($owner->{id});
     my $query;
-    if (permitted($owner->{id})) {
+    if ($is_permitted) {
         $query = 'SELECT * FROM entries WHERE user_id = ? ORDER BY created_at LIMIT 5';
     } else {
-        $query = 'SELECT * FROM entries WHERE user_id = ? AND is_private=0 ORDER BY created_at LIMIT 5';
+        $query = 'SELECT * FROM entries WHERE user_id = ? AND is_private = 0 ORDER BY created_at LIMIT 5';
     }
     my $entries = [];
     for my $entry (@{db->select_all($query, $owner->{id})}) {
@@ -359,7 +365,7 @@ get '/profile/:account_name' => [qw(set_global authenticated)] => sub {
         owner => $owner,
         profile => $prof,
         entries => $entries,
-        private => permitted($owner->{id}),
+        private => $is_permitted,
         is_friend => is_friend($owner->{id}),
         current_user => current_user(),
         prefectures => prefectures(),
@@ -520,11 +526,30 @@ post '/friends/:account_name' => [qw(set_global authenticated)] => sub {
     if (!is_friend_account($account_name)) {
         my $user = user_from_account($account_name);
         abort_content_not_found() if (!$user);
-        db->query('INSERT INTO relations (one, another) VALUES (?,?), (?,?)', current_user()->{id}, $user->{id}, $user->{id}, current_user()->{id});
+
+        db->query(
+            'INSERT INTO relations (one, another) VALUES (?,?), (?,?)',
+            current_user()->{id}, $user->{id}, $user->{id}, current_user()->{id}
+        );
+        add_friend_redis(current_user()->{id}, $user->{id});
+
         redirect('/friends');
     }
 };
 
+sub add_friend_redis {
+    my ($one_id, $another_id) = @_;
+    my @sorted = sort { $a <=> $b } ($one_id, $another_id);
+    my $key = sprintf 'is_friend:%s:%s', @sorted;
+    redis->set($key, 1, sub {});
+}
+
+sub is_friend_redis {
+    my ($one_id, $another_id) = @_;
+    my @sorted = sort { $a <=> $b } ($one_id, $another_id);
+    my $key = sprintf 'is_friend:%s:%s', @sorted;
+    return redis->get($key) ? 1 : 0;
+}
 
 get '/initialize' => sub {
     my ($self, $c) = @_;
@@ -536,8 +561,9 @@ get '/initialize' => sub {
     db->query("DELETE FROM entries WHERE id > 500000");
     db->query("DELETE FROM comments WHERE id > 1500000");
 
-    # userを全部redisに載せる
+
     redis->flushdb;
+    # userを全部redisに載せる
     my $users = db->select_all('SELECT * FROM users');
     for my $u (@$users) {
         my $data = json_driver->encode($u);
@@ -546,6 +572,11 @@ get '/initialize' => sub {
         redis->set("users:id:$id", $data, sub {});
         redis->set("users:account_name:$name", $data, sub {});
     }
+
+    # friend を全部 redis に載せる
+    my $relations = db->select_all('SELECT * FROM relations');
+    add_friend_redis($_->one, $_->another) for @$relations;
+
     redis->wait_all_responses;
 
     1;
