@@ -19,6 +19,6 @@ if [ -e /var/log/nginx/error.log ]; then
 fi
 
 # mysql
-if [ -e /var/lib/mysql/mysql-slow.log ]; then
-    rotate /var/lib/mysql/mysql-slow.log
+if [ -e /var/log/mysql/mysql-slow.log ]; then
+    rotate /var/log/mysql/mysql-slow.log
 fi
