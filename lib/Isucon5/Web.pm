@@ -239,18 +239,15 @@ SQL
     };
 
     # フレンドの投稿新しいほうから10件
+    # まとめてaccount_name, nick_name ひく
     my $entries_of_friends = db->select_all(
         'SELECT entries.id, entries.user_id, SUBSTRING_INDEX(entries.body, \'\n\', 1) as title, entries.created_at FROM entries WHERE user_id IN (?) ORDER BY created_at DESC LIMIT 10', $friend_ids
     );
-    for my $entry (@$entries_of_friends) {
-        my $owner = get_user($entry->{user_id}); # TODO ユーザまとめて引く
-        $entry->{account_name} = $owner->{account_name};
-        $entry->{nick_name} = $owner->{nick_name};
-    }
 
     # フレンドのコメントのうち新しいものから10件
     # コメント先エントリが private なら permitted のみ閲覧できる
     # XXX もうちょい JOIN しようとしたけど index 効かなくてスコア落ちてきた
+    # まとめてaccount_name, nick_name ひく
     my $comments_query = <<SQL;
 SELECT comments.* FROM comments
   JOIN entries ON comments.entry_id = entries.id
@@ -258,26 +255,15 @@ WHERE comments.user_id IN (?)
 AND (entries.is_private = 0 OR entries.user_id in (?))
 ORDER BY comments.created_at DESC LIMIT 10
 SQL
-    my $comments_of_friends = do {
-        my $comments = db->select_all($comments_query, $friend_ids, [$curr_id, @$friend_ids]);
+    my $comments_of_friends = db->select_all($comments_query, $friend_ids, [$curr_id, @$friend_ids]);
 
-        # コメント先エントリを読み込む
-        my $entries = db->select_all(
-            'SELECT entries.*, users.nick_name, users.account_name FROM entries JOIN users ON entries.user_id = users.id WHERE entries.id IN (?)',
-            [ map { $_->{entry_id} } @$comments ]
-        );
-        my $id_to_entry = +{ map { $_->{id} => $_ } @$entries };
-
-        # 各コメントの著者名とエントリをセット
-        for $c (@$comments) {
-            my $owner = get_user($c->{user_id});
-            $c->{account_name} = $owner->{account_name};
-            $c->{nick_name} = $owner->{nick_name};
-            $c->{entry} = $id_to_entry->{$c->{entry_id}};
-        }
-
-        $comments;
-    };
+    # コメント先エントリを読み込む
+    my $commenting_entries = db->select_all(
+        'SELECT entries.* FROM entries WHERE entries.id IN (?)',
+        [ map { $_->{entry_id} } @$comments_of_friends ]
+    );
+    my $id_to_entry = +{ map { $_->{id} => $_ } @$commenting_entries };
+    $_->{entry} = $id_to_entry->{$_->{entry_id}} for @$comments_of_friends; # 各コメント先エントリをセット
 
     # フレンド数のみ取得
     my $friend_count = db->select_one(
@@ -289,14 +275,26 @@ SQL
     my $query = <<SQL;
 SELECT
   footprints.user_id, footprints.owner_id, footprints.created_at as updated,
-  users.account_name, users.nick_name
 FROM footprints
-  JOIN users ON footprints.user_id = users.id
 WHERE footprints.user_id = ?
 ORDER BY footprints.created_at DESC
 LIMIT 10
 SQL
-    my $footprints = db->select_all($query, current_user()->{id});
+    my $footprints = db->select_all($query, current_user()->{id}); # account_name, nick_name ひく
+
+    {
+        # まとめて user をひいて accoutn_name, nick_name をセットする
+        my $required_user_ids = [ map { $_->{user_id} } @$entries_of_friends, @$comments_of_friends, @$commenting_entries, @$footprints ];
+        my $user_names = db->select_all(
+            'SELECT id, account_name, nick_name FROM users WHERE IN id (?)', $required_user_ids
+        );
+        my $names_by_id = +{ map { ($_->{id} => $_) } @$user_names };
+        for my $item (@$entries_of_friends, @$comments_of_friends, @$commenting_entries, @$footprints) {
+            $item->{account_name} = $names_by_id->{$item->{user_id}}->{account_name};
+            $item->{nick_name} = $names_by_id->{$item->{user_id}}->{nick_name};
+        }
+    }
+
 
     my $locals = {
         'user' => current_user(),
