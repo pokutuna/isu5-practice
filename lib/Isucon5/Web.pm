@@ -286,7 +286,7 @@ SQL
         # まとめて user をひいて accoutn_name, nick_name をセットする
         my $required_user_ids = [ map { $_->{user_id} } @$entries_of_friends, @$comments_of_friends, @$commenting_entries, @$footprints ];
         my $user_names = db->select_all(
-            'SELECT id, account_name, nick_name FROM users WHERE IN id (?)', $required_user_ids
+            'SELECT id, account_name, nick_name FROM users WHERE id IN (?)', $required_user_ids
         );
         my $names_by_id = +{ map { ($_->{id} => $_) } @$user_names };
         for my $item (@$entries_of_friends, @$comments_of_friends, @$commenting_entries, @$footprints) {
