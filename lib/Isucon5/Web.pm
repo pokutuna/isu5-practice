@@ -418,7 +418,7 @@ get '/diary/entry/:entry_id' => [qw(set_global authenticated)] => sub {
     $entry->{content} = $content;
 
     my $comments = db->select_all(
-        'SELECT comments.*, users.account_name, users.nick_name FROM comments JOIN users ON comments.uesr_id = users.id WHERE comments.entry_id = ?', $entry->{id}
+        'SELECT comments.*, users.account_name, users.nick_name FROM comments JOIN users ON comments.user_id = users.id WHERE comments.entry_id = ?', $entry->{id}
     );
 
     mark_footprint($owner->{id});
@@ -476,14 +476,8 @@ SQL
 
 get '/friends' => [qw(set_global authenticated)] => sub {
     my ($self, $c) = @_;
-    my $query = 'SELECT another FROM relations WHERE one = ? ORDER BY created_at DESC';
-    my $friends = [];
-    for my $rel (@{db->select_all($query, current_user()->{id})}) {
-        my $friend = get_user($rel->{another});
-        $rel->{account_name} = $friend->{account_name};
-        $rel->{nick_name} = $friend->{nick_name};
-        push @$friends, $rel;
-    }
+    my $query = 'SELECT relations.another, users.account_name, users.nick_name FROM relations JOIN users ON relations.another = users.id WHERE one = ? ORDER BY created_at DESC';
+    my $friends = db->select_all($query, current_user()->{id});
     $c->render('friends.tx', { friends => $friends });
 };
 
