@@ -462,7 +462,7 @@ SELECT
   footprints.user_id, footprints.owner_id, footprints.created_at as updated,
   users.account_name, users.nick_name
 FROM footprints
-  JOIN users ON footprints.user_id = users.id
+  JOIN users ON footprints.owner_id = users.id
 WHERE footprints.user_id = ?
 ORDER BY footprints.created_at DESC
 LIMIT 50
