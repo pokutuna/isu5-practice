@@ -213,25 +213,29 @@ get '/logout' => [qw(set_global)] => sub {
 get '/' => [qw(set_global authenticated)] => sub {
     my ($self, $c) = @_;
 
-    my $profile = db->select_row('SELECT * FROM profiles WHERE user_id = ?', current_user()->{id});
+    my $profile = db->select_row(
+        'SELECT * FROM profiles WHERE user_id = ?', current_user()->{id}
+    );
 
     my $entries_query = 'SELECT id,user_id,is_private,SUBSTRING_INDEX(body,\'\n\',1) AS title,created_at FROM entries WHERE user_id = ? ORDER BY created_at LIMIT 5';
     my $entries = db->select_all($entries_query, current_user()->{id});
 
     # TODO comment テーブルにコメント先エントリの user_id を追加すれば JOIN 外せそう
-    my $comments_for_me_query = <<SQL;
-SELECT
-  c.id AS id,
-  c.entry_id AS entry_id,
-  c.user_id AS user_id,
-  c.comment AS comment,
-  c.created_at AS created_at
-FROM comments AS c
-  JOIN entries AS e ON c.entry_id = e.id
-WHERE e.user_id = ?
-ORDER BY c.created_at DESC
-LIMIT 10
-SQL
+#     my $comments_for_me_query = <<SQL;
+# SELECT
+#   c.id AS id,
+#   c.entry_id AS entry_id,
+#   c.user_id AS user_id,
+#   c.comment AS comment,
+#   c.created_at AS created_at
+# FROM comments AS c
+#   JOIN entries AS e ON c.entry_id = e.id
+# WHERE e.user_id = ?
+# ORDER BY c.created_at DESC
+# LIMIT 10
+# SQL
+    my $comments_for_me_query = 'SELECT * FROM comments WHERE entry_author_id = ? ORDER BY created_at DESC LIMIT 10'
+
     my $comments_for_me = [];
     my $comments = [];
     for my $comment (@{db->select_all($comments_for_me_query, current_user()->{id})}) {
@@ -274,7 +278,8 @@ SQL
 
         # コメント先エントリを読み込む
         my $entries = db->select_all(
-            'SELECT * FROM entries WHERE id IN (?)', [ map { $_->{entry_id} } @$comments ]
+            'SELECT * FROM entries WHERE id IN (?)',
+            [ map { $_->{entry_id} } @$comments ]
         );
         my $id_to_entry = +{ map { $_->{id} => $_ } @$entries };
         for my $e (@$entries) {
@@ -348,7 +353,7 @@ get '/profile/:account_name' => [qw(set_global authenticated)] => sub {
     for my $entry (@{db->select_all($query, $owner->{id})}) {
         my ($title, $content) = split(/\n/, $entry->{body}, 2);
         $entry->{title} = $title;
-        $entry->{content} = $content;
+        $entry->{content} = $content; # template でさらに substr(0, 60) している
         push @$entries, $entry;
     }
     mark_footprint($owner->{id});

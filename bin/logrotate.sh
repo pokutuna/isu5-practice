@@ -20,5 +20,5 @@ fi
 
 # mysql
 if [ -e /var/lib/mysql/mysqld-slow.log ]; then
-    rotate /var/lib/mysql/mysqld-slow.log
+    rotate /var/lib/mysql/mysql-slow.log
 fi

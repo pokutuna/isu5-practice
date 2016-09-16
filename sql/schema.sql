@@ -52,11 +52,13 @@ CREATE TABLE IF NOT EXISTS comments (
   `id` int NOT NULL AUTO_INCREMENT PRIMARY KEY,
   `entry_id` int NOT NULL,
   `user_id` int NOT NULL,
+  `entry_author_id` int NOT NULL,
   `comment` text,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY `user_id` (`user_id`),
   KEY `entry_id` (`entry_id`),
-  KEY `created_at` (`created_at`)
+  KEY `created_at` (`created_at`),
+  KEY `eaid_created_at` (`entry_author_id`, `created_at`)
 ) DEFAULT CHARSET=utf8mb4;
 
 -- DROP TABLE IF EXISTS footprints;
