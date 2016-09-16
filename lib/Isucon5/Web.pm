@@ -539,13 +539,16 @@ get '/initialize' => sub {
 
     # friend を全部 redis に載せる
     my $relations = db->select_all('SELECT * FROM relations');
-    add_friend_redis($_->{one}, $_->{another}) for @$relations;
+    for (@$relations) {
+        next if $_->{one} > $_->{another};
+        add_friend_redis($_->{one}, $_->{another});
+    }
 
     # entry へのコメント数を redis に乗せる
     my $comments = db->select_all(
         'SELECT entry_id, count(*) AS count FROM comments GROUP BY entry_id'
     );
-    redis->set(sprintf('comment_count:entry_id:%s', $_->{entry_id}), $c->{count}, sub {}) for @$comments;
+    redis->set(sprintf('comment_count:entry_id:%s', $_->{entry_id}), $_->{count}, sub {}) for @$comments;
 
     redis->wait_all_responses;
 
