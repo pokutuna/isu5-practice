@@ -217,32 +217,19 @@ get '/' => [qw(set_global authenticated)] => sub {
         'SELECT * FROM profiles WHERE user_id = ?', current_user()->{id}
     );
 
-    my $entries_query = 'SELECT id,user_id,is_private,SUBSTRING_INDEX(body,\'\n\',1) AS title,created_at FROM entries WHERE user_id = ? ORDER BY created_at LIMIT 5';
+    my $entries_query = <<SQL;
+SELECT id, user_id, is_private, SUBSTRING_INDEX(body,\'\n\',1) AS title, created_at FROM entries WHERE user_id = ? ORDER BY created_at LIMIT 5
+SQL
     my $entries = db->select_all($entries_query, current_user()->{id});
 
-    # TODO comment テーブルにコメント先エントリの user_id を追加すれば JOIN 外せそう
-#     my $comments_for_me_query = <<SQL;
-# SELECT
-#   c.id AS id,
-#   c.entry_id AS entry_id,
-#   c.user_id AS user_id,
-#   c.comment AS comment,
-#   c.created_at AS created_at
-# FROM comments AS c
-#   JOIN entries AS e ON c.entry_id = e.id
-# WHERE e.user_id = ?
-# ORDER BY c.created_at DESC
-# LIMIT 10
-# SQL
-    my $comments_for_me_query = 'SELECT * FROM comments WHERE entry_author_id = ? ORDER BY created_at DESC LIMIT 10';
-    my $comments_for_me = [];
-    my $comments = [];
-    for my $comment (@{db->select_all($comments_for_me_query, current_user()->{id})}) {
-        my $comment_user = get_user($comment->{user_id});
-        $comment->{account_name} = $comment_user->{account_name};
-        $comment->{nick_name} = $comment_user->{nick_name};
-        push @$comments_for_me, $comment;
-    }
+    # 自分のエントリへのコメント
+    my $comments_for_me_query = <<SQL;
+SELECT comments.*, users.account_name, users.nick_name
+  FROM comments JOIN ON comments.user_id = users.id
+WHERE entry_author_id = ?
+ORDER BY created_at DESC LIMIT 10
+SQL
+    my $comments_for_me = db->select_all($comments_for_me_query, current_user()->{id});
 
     # 事前に友だちだけを引いてくる
     my $curr_id = current_user()->{id};
