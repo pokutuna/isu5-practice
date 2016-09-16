@@ -125,7 +125,6 @@ sub user_from_account {
 }
 
 # MEMO a->b, b->a の関係で双方向で持ってるけどいみなさそう
-# TODO これループから呼ばれてるので要改善
 sub is_friend {
     my ($another_id) = @_;
     my $user_id = session()->{user_id};
@@ -242,20 +241,12 @@ SQL
         push @$comments_for_me, $comment;
     }
 
-
     # 事前に友だちだけを引いてくる
     my $curr_id = current_user()->{id};
-    my $friend_map = {};
-    for my $fri (@{db->select_all('SELECT one,another FROM relations WHERE (one = ? OR another = ?)', $curr_id, $curr_id)}) {
-        # 単に友だちのidをhashで記録してるだけ
-        if ($fri->{one} == $curr_id) {
-            $friend_map->{ $fri->{another} } = 1;
-        } else {
-            $friend_map->{ $fri->{one} } = 1;
-        }
-    }
-    my $friend_ids = [ keys %$friend_map ];
-
+    my $friend_ids = do {
+        my $rows = db->select_all('SELECT another FROM relations WHERE one = ?', $curr_id);
+        [ map { $_->{another} } @$rows ];
+    };
 
     # フレンドの投稿新しいほうから10件
     my $entries_of_friends = db->select_all(
