@@ -225,7 +225,7 @@ SQL
     # 自分のエントリへのコメント
     my $comments_for_me_query = <<SQL;
 SELECT comments.*, users.account_name, users.nick_name
-  FROM comments JOIN ON comments.user_id = users.id
+  FROM comments JOIN users ON comments.user_id = users.id
 WHERE entry_author_id = ?
 ORDER BY created_at DESC LIMIT 10
 SQL
