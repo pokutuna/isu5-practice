@@ -471,9 +471,9 @@ post '/diary/comment/:entry_id' => [qw(set_global authenticated)] => sub {
     if ($entry->{is_private} && !permitted($entry->{user_id})) {
         abort_permission_denied();
     }
-    my $query = 'INSERT INTO comments (entry_id, user_id, comment) VALUES (?,?,?)';
+    my $query = 'INSERT INTO comments (entry_id, user_id, entry_author_id, comment) VALUES (?,?,?,?)';
     my $comment = $c->req->param('comment');
-    db->query($query, $entry->{id}, current_user()->{id}, $comment);
+    db->query($query, $entry->{id}, current_user()->{id}, $entry->{user_id}, $comment);
     redirect('/diary/entry/'.$entry->{id});
 };
 
