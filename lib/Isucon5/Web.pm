@@ -240,7 +240,7 @@ SQL
 
     # フレンドの投稿新しいほうから10件
     my $entries_of_friends = db->select_all(
-        'SELECT entries.id, SUBSTRING_INDEX(entries.body, \'\n\', 1) as title, entries.created_at FROM entries WHERE user_id IN (?) ORDER BY created_at DESC LIMIT 10', $friend_ids
+        'SELECT entries.id, entries.user_id, SUBSTRING_INDEX(entries.body, \'\n\', 1) as title, entries.created_at FROM entries WHERE user_id IN (?) ORDER BY created_at DESC LIMIT 10', $friend_ids
     );
     for my $entry (@$entries_of_friends) {
         my $owner = get_user($entry->{user_id}); # TODO ユーザまとめて引く
