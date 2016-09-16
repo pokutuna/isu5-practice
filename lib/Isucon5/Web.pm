@@ -540,7 +540,6 @@ get '/initialize' => sub {
     # friend を全部 redis に載せる
     my $relations = db->select_all('SELECT * FROM relations');
     for (@$relations) {
-        next if $_->{one} > $_->{another};
         add_friend_redis($_->{one}, $_->{another});
     }
 
