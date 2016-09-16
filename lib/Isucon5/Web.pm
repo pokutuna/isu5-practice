@@ -386,7 +386,7 @@ get '/diary/entries/:account_name' => [qw(set_global authenticated)] => sub {
         my ($title, $content) = split(/\n/, $entry->{body}, 2);
         $entry->{title} = $title;
         $entry->{content} = $content;
-        $entry->{comment_count} = db->select_one('SELECT COUNT(*) AS c FROM comments WHERE entry_id = ?', $entry->{id});
+        $entry->{comment_count} = redis->get(sprintf('comment_count:entry_id:%s', $entry->{id}));
         push @$entries, $entry;
     }
     mark_footprint($owner->{id});
@@ -449,6 +449,8 @@ post '/diary/comment/:entry_id' => [qw(set_global authenticated)] => sub {
     my $query = 'INSERT INTO comments (entry_id, user_id, entry_author_id, comment) VALUES (?,?,?,?)';
     my $comment = $c->req->param('comment');
     db->query($query, $entry->{id}, current_user()->{id}, $entry->{user_id}, $comment);
+    redis->incr(sprintf('comment_count:entry_id:%s', $entry->{id}));
+
     redirect('/diary/entry/'.$entry->{id});
 };
 
@@ -538,6 +540,12 @@ get '/initialize' => sub {
     # friend を全部 redis に載せる
     my $relations = db->select_all('SELECT * FROM relations');
     add_friend_redis($_->{one}, $_->{another}) for @$relations;
+
+    # entry へのコメント数を redis に乗せる
+    my $comments = db->select_all(
+        'SELECT entry_id, count(*) AS count FROM comments GROUP BY entry_id'
+    );
+    redis->set(sprintf('comment_count:entry_id:%s', $_->{entry_id}), $c->{count}, sub {}) for @$comments;
 
     redis->wait_all_responses;
 
