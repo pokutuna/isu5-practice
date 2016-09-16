@@ -234,8 +234,7 @@ get '/' => [qw(set_global authenticated)] => sub {
 # ORDER BY c.created_at DESC
 # LIMIT 10
 # SQL
-    my $comments_for_me_query = 'SELECT * FROM comments WHERE entry_author_id = ? ORDER BY created_at DESC LIMIT 10'
-
+    my $comments_for_me_query = 'SELECT * FROM comments WHERE entry_author_id = ? ORDER BY created_at DESC LIMIT 10';
     my $comments_for_me = [];
     my $comments = [];
     for my $comment (@{db->select_all($comments_for_me_query, current_user()->{id})}) {
