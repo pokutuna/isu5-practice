@@ -316,9 +316,7 @@ get '/profile/:account_name' => [qw(set_global authenticated)] => sub {
     my ($self, $c) = @_;
     my $account_name = $c->args->{account_name};
     my $owner = user_from_account($account_name);
-    my $prof = db->select_row(
-        'SELECT * FROM profiles WHERE user_id = ?', $owner->{id}
-    );
+    my $prof = get_user($owner->{id});
     $prof = {} if (!$prof);
     my $is_permitted = permitted($owner->{id});
     my $query;
@@ -405,23 +403,24 @@ get '/diary/entries/:account_name' => [qw(set_global authenticated)] => sub {
 
 get '/diary/entry/:entry_id' => [qw(set_global authenticated)] => sub {
     my ($self, $c) = @_;
+
     my $entry_id = $c->args->{entry_id};
     my $entry = db->select_row('SELECT * FROM entries WHERE id = ?', $entry_id);
     abort_content_not_found() if (!$entry);
-    my ($title, $content) = split(/\n/, $entry->{body}, 2);
-    $entry->{title} = $title;
-    $entry->{content} = $content;
+
     my $owner = get_user($entry->{user_id});
     if ($entry->{is_private} && !permitted($owner->{id})) {
         abort_permission_denied();
     }
-    my $comments = [];
-    for my $comment (@{db->select_all('SELECT * FROM comments WHERE entry_id = ?', $entry->{id})}) {
-        my $comment_user = get_user($comment->{user_id});
-        $comment->{account_name} = $comment_user->{account_name};
-        $comment->{nick_name} = $comment_user->{nick_name};
-        push @$comments, $comment;
-    }
+
+    my ($title, $content) = split(/\n/, $entry->{body}, 2);
+    $entry->{title} = $title;
+    $entry->{content} = $content;
+
+    my $comments = db->select_all(
+        'SELECT comments.*, users.account_name, users.nick_name FROM comments JOIN users ON comments.uesr_id ON users.id WHERE comments.entry_id = ?', $entry->{id}
+    );
+
     mark_footprint($owner->{id});
     my $locals = {
         'owner' => $owner,
