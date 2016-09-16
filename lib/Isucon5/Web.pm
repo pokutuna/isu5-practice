@@ -274,7 +274,7 @@ SQL
     # あしあと取得
     my $query = <<SQL;
 SELECT
-  footprints.user_id, footprints.owner_id, footprints.created_at as updated,
+  footprints.user_id, footprints.owner_id, footprints.created_at as updated
 FROM footprints
 WHERE footprints.user_id = ?
 ORDER BY footprints.created_at DESC
