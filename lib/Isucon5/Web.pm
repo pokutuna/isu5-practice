@@ -575,7 +575,7 @@ get '/initialize' => sub {
 
     # friend を全部 redis に載せる
     my $relations = db->select_all('SELECT * FROM relations');
-    add_friend_redis($_->one, $_->another) for @$relations;
+    add_friend_redis($_->{one}, $_->{another}) for @$relations;
 
     redis->wait_all_responses;
 
