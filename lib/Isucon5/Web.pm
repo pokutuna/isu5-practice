@@ -253,7 +253,8 @@ SQL
     # フレンドのコメントのうち新しいものから10件
     # コメント先エントリが private なら permitted のみ閲覧できる
     my $comments_query = <<SQL;
-SELECT * FROM comments
+SELECT comments.*, users.nick_name, users.account_name FROM comments
+  JOIN users ON comments.user_id = users.id
   JOIN entries ON comments.entry_id = entries.id
 WHERE comments.user_id IN (?)
 AND (entries.is_private = 0 OR entries.user_id in (?))
@@ -264,21 +265,13 @@ SQL
 
         # コメント先エントリを読み込む
         my $entries = db->select_all(
-            'SELECT * FROM entries WHERE id IN (?)',
+            'SELECT entries.*, users.nick_name, users.account_name FROM entries JOIN users ON entries.user_id = users.id WHERE entries.id IN (?)',
             [ map { $_->{entry_id} } @$comments ]
         );
         my $id_to_entry = +{ map { $_->{id} => $_ } @$entries };
-        for my $e (@$entries) {
-            my $owner = get_user($e->{user_id});
-            $e->{account_name} = $owner->{account_name};
-            $e->{nick_name} = $owner->{nick_name};
-        }
 
         # 各コメントの著者名とエントリをセット
         for $c (@$comments) {
-            my $owner = get_user($c->{user_id});
-            $c->{account_name} = $owner->{account_name};
-            $c->{nick_name} = $owner->{nick_name};
             $c->{entry} = $id_to_entry->{$c->{entry_id}};
         }
 
